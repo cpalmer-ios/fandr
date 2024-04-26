@@ -115,22 +115,23 @@ const root = {
           await producer.save().then(() => {
             console.log('Producer created:', producer);
           })
-        }
+          
+                  // Create product
+                  const product = new ProductModel({
+                    vintage: data.Vintage,
+                    name: data['Product Name'],
+                    producerId: producer._id, // Assign producer ObjectId
+                    producer: {
+                      name: data.Producer,
+                      country: data.Country,
+                      region: data.Region
+                    }
+                  });
+                  await product.save();
+                  console.log(product)
+                  console.log('Product created:', product);
 
-        // Create product
-        const product = new ProductModel({
-          vintage: data.Vintage,
-          name: data['Product Name'],
-          producerId: producer._id, // Assign producer ObjectId
-          producer: {
-            name: data.Producer,
-            country: data.Country,
-            region: data.Region
-          }
-        });
-        await product.save();
-        console.log(product)
-        console.log('Product created:', product);
+        }
       })
       .on('end', async () => {
         console.log('CSV processing completed');
