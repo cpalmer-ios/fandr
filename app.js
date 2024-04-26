@@ -99,7 +99,6 @@ const root = {
   processCSV: async () => {
     // Read the CSV file
     const filePath = 'all_listings.csv';
-    const groupedProducts = {};
 
     fs.createReadStream(filePath)
       .pipe(csvParser())
@@ -122,7 +121,7 @@ const root = {
         const product = new ProductModel({
           vintage: data.Vintage,
           name: data['Product Name'],
-          producer: producer._id, // Assign producer ObjectId
+          producerId: producer._id, // Assign producer ObjectId
           producer: {
             name: data.Producer,
             country: data.Country,
