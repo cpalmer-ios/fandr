@@ -1,30 +1,19 @@
-// // Connect to MongoDB
-// mongoose.connect(`mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0.tnx5w.mongodb.net/${process.env.MONGO_DB}?retryWrites=true&w=majority&appName=Cluster0`, {
-//   useNewUrlParser: true,
-//   useUnifiedTopology: true,
-// });
-
-
-
-
-
-
-
-
-
-
-
 import express from 'express';
 import mongoose from 'mongoose';
 import { graphqlHTTP } from 'express-graphql';
 import { buildSchema } from 'graphql';
+import csvParser from 'csv-parser';
+import fs from 'fs'
 
 // Connect to MongoDB
 mongoose.connect(`mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0.tnx5w.mongodb.net/${process.env.MONGO_DB}?retryWrites=true&w=majority&appName=Cluster0`, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
+
+
 const db = mongoose.connection;
+
 db.on('error', function (error) {
   console.error('MongoDB connection error:', error);
 });
@@ -83,6 +72,7 @@ const schema = buildSchema(`
     createProduct(vintage: String!, name: String!, producerId: ID!): Product
     updateProduct(_id: ID!, vintage: String, name: String): Product
     deleteProducts(ids: [ID]!): Boolean
+    processCSV: Boolean
   }
 `);
 
@@ -104,6 +94,54 @@ const root = {
   },
   deleteProducts: async ({ ids }) => {
     await ProductModel.deleteMany({ _id: { $in: ids } });
+    return true;
+  },
+  processCSV: async () => {
+    // Read the CSV file
+    const filePath = 'all_listings.csv';
+    const groupedProducts = {};
+
+    fs.createReadStream(filePath)
+      .pipe(csvParser())
+      .on('data', async (data) => {
+        console.log('Parsed data:', data);
+        // Find or create producer
+        let producer = await ProducerModel.findOne({ name: data.Producer }).exec();
+        if (!producer) {
+          producer = new ProducerModel({
+            name: data.Producer,
+            country: data.Country,
+            region: data.Region,
+          });
+          await producer.save().then(() => {
+            console.log('Producer created:', producer);
+          })
+        }
+
+        // Create product
+        const product = new ProductModel({
+          vintage: data.Vintage,
+          name: data['Product Name'],
+          producer: producer._id, // Assign producer ObjectId
+          producer: {
+            name: data.Producer,
+            country: data.Country,
+            region: data.Region
+          }
+        });
+        await product.save();
+        console.log(product)
+        console.log('Product created:', product);
+      })
+      .on('end', async () => {
+        console.log('CSV processing completed');
+      })
+      .on('error', (error) => {
+        console.error('Error processing CSV:', error);
+      });
+
+    // Return true after processing CSV
+    console.log('CSV processing started');
     return true;
   },
 };
